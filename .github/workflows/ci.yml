@@ -80,8 +80,7 @@ jobs:
           dotnet nuget push "nupkg/*.nupkg" \
           --source "$NUGET_FEED" \
           --api-key "$GITHUB_TOKEN" \
-          --skip-duplicate \
-          --verbosity detailed
+          --skip-duplicate
   
   publish-chickens-image:
     needs: build-test
