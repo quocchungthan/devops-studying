@@ -10,6 +10,10 @@ artifacts/*
 artifacts/farm-sandbox-chickens/*
 !artifacts/farm-sandbox-chickens/linux-x64/
 !artifacts/farm-sandbox-chickens/linux-x64/**
+!artifacts/farm-sandbox-cows/
+artifacts/farm-sandbox-cows/*
+!artifacts/farm-sandbox-cows/linux-x64/
+!artifacts/farm-sandbox-cows/linux-x64/**
 .env
 .env.*
 **/.env

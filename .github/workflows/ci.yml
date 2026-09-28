@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NUGET_FEED: https://nuget.pkg.github.com/quocchungthan/index.json
+  IMAGE_NAME: ghcr.io/quocchungthan/farm-sandbox-chickens
+  COWS_IMAGE_NAME: ghcr.io/quocchungthan/farm-sandbox-cows
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet restore DevopsStudy.slnx
+      - run: dotnet build DevopsStudy.slnx --configuration Release --no-restore -warnaserror '-warnnotaserror:NU1901;NU1902;NU1903;NU1904'
+      - run: dotnet test DevopsStudy.slnx --configuration Release --no-build
+
+  publish-sam:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-sam-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Compute package version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Tag '$GITHUB_REF_NAME' is not a valid SemVer version (expected vX.Y.Z[-suffix])"
+              exit 1
+            fi
+          else
+            base="$(dotnet msbuild Farm.Console/Farm.Console.csproj -getProperty:VersionPrefix)"
+            version="${base}-ci.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Pack
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet pack Farm.Console/Farm.Console.csproj --configuration Release --output nupkg -p:Version="$VERSION"
+
+      - name: Push to GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet nuget push "nupkg/*.nupkg" --source "$NUGET_FEED" --api-key "$NUGET_AUTH_TOKEN" --skip-duplicate
+
+  publish-chickens-image:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-image-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Mirrors scripts/Build-FarmSandboxChickensImage.ps1
+      - run: dotnet restore Farm.Sandbox.Chickens/Farm.Sandbox.Chickens.csproj --runtime linux-x64 /p:CopilotRuntimeIdentifier=linux-x64
+      - run: >-
+          dotnet publish Farm.Sandbox.Chickens/Farm.Sandbox.Chickens.csproj
+          --configuration Release
+          --no-restore
+          --runtime linux-x64
+          --self-contained false
+          --output artifacts/farm-sandbox-chickens/linux-x64
+          /p:CopilotRuntimeIdentifier=linux-x64
+          /p:UseAppHost=false
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Farm.Sandbox.Chickens/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  publish-cows-image:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-cows-image-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Mirrors scripts/Build-FarmSandboxCowsImage.ps1
+      - run: dotnet restore Farm.Sandbox.Cows/Farm.Sandbox.Cows.csproj --runtime linux-x64 /p:CopilotRuntimeIdentifier=linux-x64
+      - run: >-
+          dotnet publish Farm.Sandbox.Cows/Farm.Sandbox.Cows.csproj
+          --configuration Release
+          --no-restore
+          --runtime linux-x64
+          --self-contained false
+          --output artifacts/farm-sandbox-cows/linux-x64
+          /p:CopilotRuntimeIdentifier=linux-x64
+          /p:UseAppHost=false
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.COWS_IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Farm.Sandbox.Cows/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

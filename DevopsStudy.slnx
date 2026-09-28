@@ -12,4 +12,6 @@
     <Project Path="Farm.State.Sqlite.Tests/Farm.State.Sqlite.Tests.csproj" />
     <Project Path="Farm.Sandbox.Chickens/Farm.Sandbox.Chickens.csproj" />
     <Project Path="Farm.Sandbox.Chickens.Tests/Farm.Sandbox.Chickens.Tests.csproj" />
+    <Project Path="Farm.Sandbox.Cows/Farm.Sandbox.Cows.csproj" />
+    <Project Path="Farm.Sandbox.Cows.Tests/Farm.Sandbox.Cows.Tests.csproj" />
 </Solution>

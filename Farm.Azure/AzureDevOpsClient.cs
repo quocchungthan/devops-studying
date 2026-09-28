@@ -154,17 +154,7 @@ public sealed partial class AzureDevOpsClient :
 
         client ??= connection.GetClient<WorkItemTrackingHttpClient>();
 
-        var assignedToClause = string.Equals(assignee, "me", StringComparison.OrdinalIgnoreCase)
-            ? "@Me"
-            : $"'{EscapeWiqlLiteral(assignee)}'";
-
-        var wiql = new Wiql
-        {
-            Query = $"SELECT [System.Id] FROM WorkItems " +
-                    $"WHERE [System.TeamProject] = '{EscapeWiqlLiteral(project)}' " +
-                    $"AND [System.AssignedTo] = {assignedToClause} " +
-                    "ORDER BY [System.ChangedDate] DESC"
-        };
+        var wiql = new Wiql { Query = BuildAssignedToWiql(project, assignee) };
 
         var queryResult = await client.QueryByWiqlAsync(wiql, cancellationToken: cancellationToken);
         var ids = queryResult.WorkItems.Select(reference => reference.Id).ToArray();
@@ -379,6 +369,29 @@ public sealed partial class AzureDevOpsClient :
         }
 
         return await GetDomainWorkItemsAsync(ids, cancellationToken);
+    }
+
+    // 'me' maps to @Me, which Azure DevOps resolves to the PAT owner.
+    internal static string BuildAssignedToWiql(
+        string project,
+        string assignee,
+        IReadOnlyList<string>? excludedStates = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(project);
+        ArgumentException.ThrowIfNullOrWhiteSpace(assignee);
+
+        var assignedToClause = string.Equals(assignee, "me", StringComparison.OrdinalIgnoreCase)
+            ? "@Me"
+            : $"'{EscapeWiqlLiteral(assignee)}'";
+        var stateClause = excludedStates is { Count: > 0 }
+            ? $"AND [System.State] NOT IN ({string.Join(", ", excludedStates.Select(state => $"'{EscapeWiqlLiteral(state)}'"))}) "
+            : string.Empty;
+
+        return $"SELECT [System.Id] FROM WorkItems " +
+               $"WHERE [System.TeamProject] = '{EscapeWiqlLiteral(project)}' " +
+               $"AND [System.AssignedTo] = {assignedToClause} " +
+               stateClause +
+               "ORDER BY [System.ChangedDate] DESC";
     }
 
     internal static string BuildNeedsAttentionWiql(string project, IReadOnlyList<string> terminalStates)

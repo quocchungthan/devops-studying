@@ -1,0 +1,76 @@
+name: farm-sandbox-cows
+
+# Run from the repository root with the shared root .env (interpolation only; no env_file, so unrelated
+# root secrets never reach the container):
+#   docker compose -f deployment/farm-sandbox-cows.compose.yml --env-file .env up -d
+services:
+  farm-sandbox-cows:
+    build:
+      context: ..
+      dockerfile: Farm.Sandbox.Cows/Dockerfile
+    environment:
+      TZ: ${FARM_COWS_TIMEZONE:-${FARM_CHICKENS_TIMEZONE:-${TZ:-Etc/UTC}}}
+      FARM_AZURE_DEVOPS_ORGANIZATION_URL: ${FARM_AZURE_DEVOPS_ORGANIZATION_URL:?set FARM_AZURE_DEVOPS_ORGANIZATION_URL}
+      FARM_AZURE_DEVOPS_PROJECT: ${FARM_AZURE_DEVOPS_PROJECT:?set FARM_AZURE_DEVOPS_PROJECT}
+      FARM_AZURE_DEVOPS_PAT: ${FARM_AZURE_DEVOPS_PAT:?set FARM_AZURE_DEVOPS_PAT}
+      FARM_AZURE_DEVOPS_TERMINAL_STATES: ${FARM_AZURE_DEVOPS_TERMINAL_STATES:-}
+      FARM_COWS_REPOSITORY_PATH: /workspace/repository
+      FARM_COWS_NOTES_PATH: /workspace/notes
+      FARM_COWS_STATE_CONTAINER_PATH: /workspace/state
+      FARM_COWS_SCHEDULE_SECONDS: ${FARM_COWS_SCHEDULE_SECONDS:-7200}
+      FARM_COWS_RUN_IMMEDIATELY: ${FARM_COWS_RUN_IMMEDIATELY:-true}
+      FARM_COWS_MAX_PATCHES_PER_RUN: ${FARM_COWS_MAX_PATCHES_PER_RUN:-20}
+      FARM_COWS_MAX_RELATED_ITEMS: ${FARM_COWS_MAX_RELATED_ITEMS:-50}
+      FARM_COWS_MAX_NOTE_AGE_HOURS: ${FARM_COWS_MAX_NOTE_AGE_HOURS:-24}
+      FARM_COWS_COPILOT_MODEL: ${FARM_COWS_COPILOT_MODEL:-auto}
+      FARM_COWS_ADO_MCP_USE_PAT: ${FARM_COWS_ADO_MCP_USE_PAT:-false}
+      FARM_COWS_MIRO_ACCESS_TOKEN: ${FARM_COWS_MIRO_ACCESS_TOKEN:-}
+      FARM_COWS_SAFE_PROCESS_ENV_JSON: ${FARM_COWS_SAFE_PROCESS_ENV_JSON:-{}}
+    volumes:
+      # Same read-only repository seed as Chickens unless overridden; used only as existing-implementation evidence.
+      - ${FARM_COWS_REPOSITORY_HOST_PATH:-${FARM_CHICKENS_REPOSITORY_HOST_PATH:?set FARM_COWS_REPOSITORY_HOST_PATH or FARM_CHICKENS_REPOSITORY_HOST_PATH}}:/workspace/repository:ro
+      # Writable host paths must already exist (scripts/Build-FarmSandboxCowsImage.ps1 creates the defaults); Compose
+      # fails fast instead of creating them as root.
+      - type: bind
+        source: ${FARM_COWS_NOTES_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/notes}
+        target: /workspace/notes
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${FARM_COWS_STATE_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/state}
+        target: /workspace/state
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${FARM_COWS_CACHE_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/cache}
+        target: /workspace/cache
+        bind:
+          create_host_path: false
+      # The same gh CLI login the Chickens containers use (written by the Chickens authtest compose), mounted
+      # read-only at $HOME/.config/gh/hosts.yml. The token is never copied; a missing file fails fast.
+      - type: bind
+        source: ${FARM_COWS_GH_HOSTS_FILE:-${FARM_CHICKENS_CACHE_HOST_PATH:?set FARM_COWS_GH_HOSTS_FILE or FARM_CHICKENS_CACHE_HOST_PATH}/home/.config/gh/hosts.yml}
+        target: /workspace/cache/home/.config/gh/hosts.yml
+        read_only: true
+        bind:
+          create_host_path: false
+    user: "1654:1654"
+    init: true
+    restart: unless-stopped
+    privileged: false
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /run:rw,noexec,nosuid,nodev,size=16m,mode=0755
+      # Copilot runtime home ($HOME/.copilot: session-state events, logs, config); kept in memory so prompts,
+      # tool results, and MCP session config never persist to the host cache.
+      - /workspace/cache/home/.copilot:rw,nosuid,nodev,size=256m,uid=1654,gid=1654,mode=0700
+    pids_limit: 256
+    mem_limit: ${FARM_COWS_MEMORY_LIMIT:-2g}
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1

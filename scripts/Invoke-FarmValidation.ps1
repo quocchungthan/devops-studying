@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Core', 'Chickens', 'Solution')]
+    [ValidateSet('Core', 'Chickens', 'Cows', 'Solution')]
     [string]$Scope = 'Solution',
     [switch]$AuditPackages
 )
@@ -15,6 +15,14 @@ $targets = switch ($Scope) {
             'Farm.Git.Tests/Farm.Git.Tests.csproj',
             'Farm.State.Sqlite.Tests/Farm.State.Sqlite.Tests.csproj',
             'Farm.Sandbox.Chickens.Tests/Farm.Sandbox.Chickens.Tests.csproj'
+        )
+    }
+    'Cows' {
+        @(
+            'Farm.Core.Tests/Farm.Core.Tests.csproj',
+            'Farm.Azure.Tests/Farm.Azure.Tests.csproj',
+            'Farm.State.Sqlite.Tests/Farm.State.Sqlite.Tests.csproj',
+            'Farm.Sandbox.Cows.Tests/Farm.Sandbox.Cows.Tests.csproj'
         )
     }
     default { @('DevopsStudy.slnx') }
