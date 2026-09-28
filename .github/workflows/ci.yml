@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 env:
   DOTNET_NOLOGO: true
@@ -76,7 +77,7 @@ jobs:
       - name: Push to GitHub Packages
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet nuget push "nupkg/*.nupkg" --source "$NUGET_FEED" --api-key "$NUGET_AUTH_TOKEN" --skip-duplicate
+        run: dotnet nuget push "nupkg/*.nupkg" --source "$NUGET_FEED" --api-key "$GITHUB_TOKEN" --skip-duplicate
 
   publish-chickens-image:
     needs: build-test
