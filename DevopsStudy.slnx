@@ -1,0 +1,15 @@
+<Solution>
+    <Project Path="Farm.Core/Farm.Core.csproj" />
+    <Project Path="Farm.Azure/Farm.Azure.csproj" />
+    <Project Path="Farm.Console/Farm.Console.csproj" />
+    <Project Path="Farm.Azure.Tests/Farm.Azure.Tests.csproj" />
+    <Project Path="Farm.Console.Tests/Farm.Console.Tests.csproj" />
+    <Project Path="Farm.Core.Tests/Farm.Core.Tests.csproj" />
+    <Project Path="Farm.Git/Farm.Git.csproj" />
+    <Project Path="Farm.Git.Tests/Farm.Git.Tests.csproj" />
+    <Project Path="Farm.Copilot/Farm.Copilot.csproj" />
+    <Project Path="Farm.State.Sqlite/Farm.State.Sqlite.csproj" />
+    <Project Path="Farm.State.Sqlite.Tests/Farm.State.Sqlite.Tests.csproj" />
+    <Project Path="Farm.Sandbox.Chickens/Farm.Sandbox.Chickens.csproj" />
+    <Project Path="Farm.Sandbox.Chickens.Tests/Farm.Sandbox.Chickens.Tests.csproj" />
+</Solution>

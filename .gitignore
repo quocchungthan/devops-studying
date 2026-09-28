@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+appsettings.*.json
+.env
+
+artifacts/
+
+# Environment-specific corporate proxy CA - regenerate with scripts/Export-CorporateRootCA.ps1
+deployment/*.crt
+deployment/*.pem

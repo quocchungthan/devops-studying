@@ -1,0 +1,79 @@
+#!/bin/sh
+# Blocks commits that stage likely secrets (API keys, private keys, tokens, .env files, etc).
+# Scans only staged content (git diff --cached), so it stays fast.
+# Bypass false positives with: git commit --no-verify
+
+blocked=0
+
+# Prints a block message; never prints the matched value itself.
+report() {
+    file=$1
+    label=$2
+    echo "pre-commit: blocked - '$file' matches pattern: $label" >&2
+    blocked=1
+}
+
+# Checks $added_lines (added lines of the current file's diff) against one regex/label pair.
+check_pattern() {
+    file=$1
+    regex=$2
+    label=$3
+    if echo "$added_lines" | grep -Eqi -- "$regex"; then
+        report "$file" "$label"
+    fi
+}
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$staged_files" ]; then
+    exit 0
+fi
+
+echo "$staged_files" | {
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+
+    base=$(basename "$file")
+    case "$base" in
+        .env|.env.*)
+            case "$base" in
+                *.example|*.sample|*.template) : ;;
+                *) report "$file" "committing a .env file (rename to *.example if it holds no real secrets)" ;;
+            esac
+            ;;
+    esac
+
+    case "$file" in
+        deployment/*.crt|deployment/*.pem)
+            report "$file" "environment-specific CA cert under deployment/ (regenerate locally with scripts/Export-CorporateRootCA.ps1, do not commit)"
+            ;;
+    esac
+
+    added_lines=$(git diff --cached -U0 -- "$file" | grep -E '^\+' | grep -Ev '^\+\+\+')
+    [ -z "$added_lines" ] && continue
+
+    check_pattern "$file" 'AKIA[0-9A-Z]{16}' 'AWS Access Key ID'
+    check_pattern "$file" 'aws_secret_access_key[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{40}' 'AWS Secret Access Key'
+    check_pattern "$file" '\-\-\-\-\-BEGIN[ A-Z]*PRIVATE KEY\-\-\-\-\-' 'Private key block'
+    check_pattern "$file" 'ghp_[A-Za-z0-9]{36}' 'GitHub personal access token'
+    check_pattern "$file" 'gh[oprsu]_[A-Za-z0-9]{36}' 'GitHub token (oauth/app/refresh/server)'
+    check_pattern "$file" 'xox[baprs]-[A-Za-z0-9-]{10,}' 'Slack token'
+    check_pattern "$file" 'AIza[0-9A-Za-z_-]{35}' 'Google API key'
+    check_pattern "$file" 'sk-[A-Za-z0-9]{20,}' 'Generic secret key (sk-...)'
+    check_pattern "$file" '(api|access|secret)[_-]?key[[:space:]]*[:=][[:space:]]*.{16,}' 'Generic API/secret key assignment'
+    check_pattern "$file" '(password|passwd|pwd)[[:space:]]*[:=][[:space:]]*[^[:space:]]{6,}' 'Hardcoded password assignment'
+    check_pattern "$file" '[A-Za-z0-9+/]{6,}:[^[:space:]@]{6,}@[A-Za-z0-9.-]+(:[0-9]+)?/' 'Connection string with embedded credentials'
+    check_pattern "$file" 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' 'JWT-looking token'
+done
+exit $blocked
+}
+result=$?
+
+if [ "$result" -ne 0 ]; then
+    echo "" >&2
+    echo "Commit blocked: possible secret(s) detected in staged changes (see above)." >&2
+    echo "If this is a false positive, bypass with: git commit --no-verify" >&2
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);GHCP001</NoWarn>
+    <RuntimeIdentifier Condition="'$(CopilotRuntimeIdentifier)' != ''">$(CopilotRuntimeIdentifier)</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Farm.Core\Farm.Core.csproj" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.14" />
+  </ItemGroup>
+</Project>

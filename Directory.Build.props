@@ -1,0 +1,8 @@
+<Project>
+
+  <ItemGroup>
+    <!-- Transitive via Microsoft.TeamFoundationServer.Client; upgrading it swaps in a different high-severity advisory (see Farm.Azure history) -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-98g6-xh36-x2p7" />
+  </ItemGroup>
+
+</Project>

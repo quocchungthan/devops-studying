@@ -1,0 +1,35 @@
+# TEST-ONLY image: proves `gh auth login` (device/web flow) works and persists into
+# FARM_CHICKENS_CACHE_HOST_PATH, using the exact same base image, CA trust, user, and
+# cache volume as the real Farm.Sandbox.Chickens sandbox — but with none of the .NET app.
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl git tini tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && install --directory --owner=1654 --group=1654 \
+        /workspace/cache \
+    && git config --system --add safe.directory '*'
+
+# Trust the corporate TLS-inspecting proxy CA (Cisco Umbrella) so outbound HTTPS calls
+# (e.g. `gh auth login --web`, GitHub API) don't fail with UnknownIssuer.
+COPY deployment/cisco-umbrella-root-ca.crt /usr/local/share/ca-certificates/cisco-umbrella-root-ca.crt
+RUN update-ca-certificates
+
+# GitHub CLI (gh), installed the same way as the real sandbox so `gh auth login` behaves
+# identically and populates the same $HOME/.config/gh consumed by Copilot SDK's UseLoggedInUser.
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+ENV HOME=/workspace/cache/home \
+    GIT_TERMINAL_PROMPT=0
+
+USER 1654:1654
+
+# No app to run — this image only exists to get a human into a shell to run `gh auth login`.
+ENTRYPOINT ["/bin/bash"]

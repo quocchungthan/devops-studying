@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Farm.Core\Farm.Core.csproj" />
+    <ProjectReference Include="..\Farm.Azure\Farm.Azure.csproj" />
+    <ProjectReference Include="..\Farm.Git\Farm.Git.csproj" />
+    <ProjectReference Include="..\Farm.Copilot\Farm.Copilot.csproj" />
+    <ProjectReference Include="..\Farm.State.Sqlite\Farm.State.Sqlite.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+  </ItemGroup>
+</Project>

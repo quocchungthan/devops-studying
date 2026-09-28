@@ -1,0 +1,1 @@
+return await ConsoleApp.RunAsync(args);

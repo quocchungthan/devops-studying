@@ -1,0 +1,30 @@
+name: farm-sandbox-chickens-authtest
+
+# TEST-ONLY compose file. Purpose: prove `gh auth login` works and persists into the
+# SAME cache volume the real farm-sandbox-chickens service uses (FARM_CHICKENS_CACHE_HOST_PATH),
+# without needing any of the app's Azure DevOps / git-identity env vars.
+#
+# A successful `gh auth login` here writes $HOME/.config/gh into /workspace/cache/home on the
+# shared volume, which the real service mounts too — so this doubles as the actual fix for the
+# gh-auth-persistence problem, not just a smoke test.
+services:
+  authtest:
+    build:
+      context: ..
+      dockerfile: Farm.Sandbox.Chickens/Dockerfile.authtest
+    volumes:
+      - ${FARM_CHICKENS_CACHE_HOST_PATH:?set FARM_CHICKENS_CACHE_HOST_PATH}:/workspace/cache
+    user: "1654:1654"
+    init: true
+    privileged: false
+    # TEST-ONLY relaxation: the real service runs `read_only: true`, but `gh auth login`
+    # needs to write to /workspace/cache/home (mounted rw above) and to its own runtime
+    # dirs (e.g. TMPDIR). Keeping the filesystem writable here is deliberate and scoped to
+    # this auth-proving session only; the production compose file stays hardened.
+    read_only: false
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stdin_open: true
+    tty: true
