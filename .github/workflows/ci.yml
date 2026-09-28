@@ -73,12 +73,16 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: dotnet pack Farm.Console/Farm.Console.csproj --configuration Release --output nupkg -p:Version="$VERSION"
-
       - name: Push to GitHub Packages
         env:
-          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet nuget push "nupkg/*.nupkg" --source "$NUGET_FEED" --api-key "$GITHUB_TOKEN" --skip-duplicate
-
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget push "nupkg/*.nupkg" \
+          --source "$NUGET_FEED" \
+          --api-key "$GITHUB_TOKEN" \
+          --skip-duplicate \
+          --verbosity detailed
+  
   publish-chickens-image:
     needs: build-test
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
