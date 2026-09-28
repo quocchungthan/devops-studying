@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble
 
 RUN apt-get update \
@@ -14,8 +15,12 @@ RUN apt-get update \
 
 # Trust the corporate TLS-inspecting proxy CA (Cisco Umbrella) so outbound HTTPS calls
 # from within the sandbox (e.g. Copilot CLI model resolution) don't fail with UnknownIssuer.
-COPY deployment/cisco-umbrella-root-ca.crt /usr/local/share/ca-certificates/cisco-umbrella-root-ca.crt
-RUN update-ca-certificates
+# The CA is gitignored and optional (absent in CI); the bind mount keeps it out of image layers.
+RUN --mount=type=bind,source=deployment,target=/tmp/deploy \
+    if [ -f /tmp/deploy/cisco-umbrella-root-ca.crt ]; then \
+        cp /tmp/deploy/cisco-umbrella-root-ca.crt /usr/local/share/ca-certificates/; \
+    fi \
+    && update-ca-certificates
 
 # GitHub CLI (gh), installed from the official apt repo so `gh auth login` device-flow
 # can populate /workspace/cache/home and be picked up by Copilot SDK's UseLoggedInUser fallback.

@@ -6,6 +6,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sam</ToolCommandName>
     <PackageId>Farm.Console</PackageId>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <RepositoryUrl>https://github.com/quocchungthan/devops-studying</RepositoryUrl>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
