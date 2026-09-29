@@ -64,7 +64,7 @@ public sealed class CowOptions
 
     public static IReadOnlyDictionary<string, string> LoadSafeProcessEnvironment()
     {
-        var json = Optional("FARM_COWS_SAFE_PROCESS_ENV_JSON");
+        var json = Optional("FARM_COWS_COPILOT_EXTRA_ENV_JSON");
         return json is null
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             : JsonSerializer.Deserialize<Dictionary<string, string>>(json)
