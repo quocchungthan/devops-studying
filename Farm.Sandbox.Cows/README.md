@@ -23,9 +23,9 @@ Farm.Sandbox.Cows is a fixed-delay Generic Host (every 2 hours by default) that 
 
 ## Environment
 
-Shared (root `.env`): `FARM_AZURE_DEVOPS_ORGANIZATION_URL`, `FARM_AZURE_DEVOPS_PROJECT`, `FARM_AZURE_DEVOPS_PAT`, optional `FARM_AZURE_DEVOPS_TERMINAL_STATES`, and `FARM_CHICKENS_CACHE_HOST_PATH` / `FARM_CHICKENS_REPOSITORY_HOST_PATH` as fallbacks.
+Shared (root `.env`): `FARM_AZURE_DEVOPS_ORGANIZATION_URL`, `FARM_AZURE_DEVOPS_PROJECT`, `FARM_AZURE_DEVOPS_PAT`, optional `FARM_AZURE_DEVOPS_TERMINAL_STATES`, and `FARM_CHICKENS_CACHE_HOST_PATH` as the `hosts.yml` fallback.
 
-Cows-specific, all optional: `FARM_COWS_SCHEDULE_SECONDS` (7200), `FARM_COWS_RUN_IMMEDIATELY` (true), `FARM_COWS_MAX_PATCHES_PER_RUN` (20), `FARM_COWS_MAX_RELATED_ITEMS` (50, `0` disables related items), `FARM_COWS_MAX_NOTE_AGE_HOURS` (24, `0` disables age-based refresh), `FARM_COWS_COPILOT_MODEL` (auto), `FARM_COWS_ADO_MCP_USE_PAT` (false), `FARM_COWS_MIRO_ACCESS_TOKEN`, `FARM_COWS_COPILOT_EXTRA_ENV_JSON` ({}), `FARM_COWS_TIMEZONE`, `FARM_COWS_MEMORY_LIMIT` (2g). Host paths: `FARM_COWS_DATA_HOST_PATH` (default `artifacts/farm-sandbox-cows-data`) or individually `FARM_COWS_NOTES_HOST_PATH`, `FARM_COWS_STATE_HOST_PATH`, `FARM_COWS_CACHE_HOST_PATH`, `FARM_COWS_REPOSITORY_HOST_PATH`, `FARM_COWS_GH_HOSTS_FILE`. In-container paths: `FARM_COWS_NOTES_PATH`, `FARM_COWS_REPOSITORY_PATH`, `FARM_COWS_RESOURCES_PATH`, `FARM_COWS_STATE_CONTAINER_PATH`, `FARM_COWS_STATE_PATH`, `FARM_COWS_STATUS_PATH`, `FARM_COWS_LOCK_PATH` (state paths must stay beneath the state root).
+Cows-specific, all optional: `FARM_COWS_SCHEDULE_SECONDS` (7200), `FARM_COWS_RUN_IMMEDIATELY` (true), `FARM_COWS_MAX_PATCHES_PER_RUN` (20), `FARM_COWS_MAX_RELATED_ITEMS` (50, `0` disables related items), `FARM_COWS_MAX_NOTE_AGE_HOURS` (24, `0` disables age-based refresh), `FARM_COWS_COPILOT_MODEL` (auto), `FARM_COWS_ADO_MCP_USE_PAT` (false), `FARM_COWS_MIRO_ACCESS_TOKEN`, `FARM_COWS_COPILOT_EXTRA_ENV_JSON` ({}),  `FARM_COWS_MEMORY_LIMIT` (2g). Host paths, required like Chickens: `FARM_COWS_REPOSITORY_HOST_PATH`, `FARM_COWS_NOTES_HOST_PATH`, `FARM_COWS_STATE_HOST_PATH`, `FARM_COWS_CACHE_HOST_PATH`; optional `FARM_COWS_GH_HOSTS_FILE`. Container mount points: `FARM_COWS_REPOSITORY_CONTAINER_PATH` (`/workspace/repository`), `FARM_COWS_NOTES_CONTAINER_PATH` (`/workspace/notes`), `FARM_COWS_STATE_CONTAINER_PATH` (`/workspace/state`). In-container paths: `FARM_COWS_NOTES_PATH`, `FARM_COWS_REPOSITORY_PATH`, `FARM_COWS_RESOURCES_PATH`, `FARM_COWS_STATE_CONTAINER_PATH`, `FARM_COWS_STATE_PATH`, `FARM_COWS_STATUS_PATH`, `FARM_COWS_LOCK_PATH` (state paths must stay beneath the state root).
 
 ## GitHub auth
 
@@ -33,7 +33,7 @@ Cows reuses the gh login the Chickens containers use: `${FARM_CHICKENS_CACHE_HOS
 
 ## Build and run
 
-Pull the published image, or build locally (the script also pre-creates the default `artifacts/farm-sandbox-cows-data/{notes,state,cache}` host paths; Compose binds them with `create_host_path: false`, so create any custom `FARM_COWS_*_HOST_PATH` yourself, owned by `1654:1654` on Linux):
+Pull the published image, or build locally (on Linux, pre-create the `FARM_COWS_*_HOST_PATH` folders owned by `1654:1654`):
 
 ```powershell
 docker pull ghcr.io/quocchungthan/farm-sandbox-cows:latest

@@ -9,14 +9,14 @@ services:
       context: ..
       dockerfile: Farm.Sandbox.Cows/Dockerfile
     environment:
-      TZ: ${FARM_COWS_TIMEZONE:-${FARM_CHICKENS_TIMEZONE:-${TZ:-Etc/UTC}}}
+      TZ: ${TZ:-Etc/UTC}
       FARM_AZURE_DEVOPS_ORGANIZATION_URL: ${FARM_AZURE_DEVOPS_ORGANIZATION_URL:?set FARM_AZURE_DEVOPS_ORGANIZATION_URL}
       FARM_AZURE_DEVOPS_PROJECT: ${FARM_AZURE_DEVOPS_PROJECT:?set FARM_AZURE_DEVOPS_PROJECT}
       FARM_AZURE_DEVOPS_PAT: ${FARM_AZURE_DEVOPS_PAT:?set FARM_AZURE_DEVOPS_PAT}
       FARM_AZURE_DEVOPS_TERMINAL_STATES: ${FARM_AZURE_DEVOPS_TERMINAL_STATES:-}
-      FARM_COWS_REPOSITORY_PATH: /workspace/repository
-      FARM_COWS_NOTES_PATH: /workspace/notes
-      FARM_COWS_STATE_CONTAINER_PATH: /workspace/state
+      FARM_COWS_REPOSITORY_PATH: ${FARM_COWS_REPOSITORY_CONTAINER_PATH:-/workspace/repository}
+      FARM_COWS_NOTES_PATH: ${FARM_COWS_NOTES_CONTAINER_PATH:-/workspace/notes}
+      FARM_COWS_STATE_CONTAINER_PATH: ${FARM_COWS_STATE_CONTAINER_PATH:-/workspace/state}
       FARM_COWS_SCHEDULE_SECONDS: ${FARM_COWS_SCHEDULE_SECONDS:-7200}
       FARM_COWS_RUN_IMMEDIATELY: ${FARM_COWS_RUN_IMMEDIATELY:-true}
       FARM_COWS_MAX_PATCHES_PER_RUN: ${FARM_COWS_MAX_PATCHES_PER_RUN:-20}
@@ -27,25 +27,10 @@ services:
       FARM_COWS_MIRO_ACCESS_TOKEN: ${FARM_COWS_MIRO_ACCESS_TOKEN:-}
       FARM_COWS_COPILOT_EXTRA_ENV_JSON: ${FARM_COWS_COPILOT_EXTRA_ENV_JSON:-{}}
     volumes:
-      # Same read-only repository seed as Chickens unless overridden; used only as existing-implementation evidence.
-      - ${FARM_COWS_REPOSITORY_HOST_PATH:-${FARM_CHICKENS_REPOSITORY_HOST_PATH:?set FARM_COWS_REPOSITORY_HOST_PATH or FARM_CHICKENS_REPOSITORY_HOST_PATH}}:/workspace/repository:ro
-      # Writable host paths must already exist (scripts/Build-FarmSandboxCowsImage.ps1 creates the defaults); Compose
-      # fails fast instead of creating them as root.
-      - type: bind
-        source: ${FARM_COWS_NOTES_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/notes}
-        target: /workspace/notes
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FARM_COWS_STATE_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/state}
-        target: /workspace/state
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FARM_COWS_CACHE_HOST_PATH:-${FARM_COWS_DATA_HOST_PATH:-../artifacts/farm-sandbox-cows-data}/cache}
-        target: /workspace/cache
-        bind:
-          create_host_path: false
+      - ${FARM_COWS_REPOSITORY_HOST_PATH:?set FARM_COWS_REPOSITORY_HOST_PATH}:${FARM_COWS_REPOSITORY_CONTAINER_PATH:-/workspace/repository}:ro
+      - ${FARM_COWS_NOTES_HOST_PATH:?set FARM_COWS_NOTES_HOST_PATH}:${FARM_COWS_NOTES_CONTAINER_PATH:-/workspace/notes}
+      - ${FARM_COWS_STATE_HOST_PATH:?set FARM_COWS_STATE_HOST_PATH}:${FARM_COWS_STATE_CONTAINER_PATH:-/workspace/state}
+      - ${FARM_COWS_CACHE_HOST_PATH:?set FARM_COWS_CACHE_HOST_PATH}:/workspace/cache
       # The same gh CLI login the Chickens containers use (written by the Chickens authtest compose), mounted
       # read-only at $HOME/.config/gh/hosts.yml. The token is never copied; a missing file fails fast.
       - type: bind

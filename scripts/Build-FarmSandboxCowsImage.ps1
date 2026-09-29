@@ -1,16 +1,11 @@
 [CmdletBinding()]
 param(
     [string]$ImageTag = 'farm-sandbox-cows:local',
-    # Compose binds notes/state/cache with create_host_path: false; this pre-creates them (default FARM_COWS_DATA_HOST_PATH).
-    [string]$DataHostPath,
     [switch]$SkipDockerBuild
 )
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-if (-not $DataHostPath) {
-    $DataHostPath = Join-Path $repositoryRoot 'artifacts/farm-sandbox-cows-data'
-}
 $projectPath = Join-Path $repositoryRoot 'Farm.Sandbox.Cows/Farm.Sandbox.Cows.csproj'
 $solutionPath = Join-Path $repositoryRoot 'DevopsStudy.slnx'
 $validationScript = Join-Path $PSScriptRoot 'Invoke-FarmValidation.ps1'
@@ -35,10 +30,6 @@ function Invoke-CheckedCommand {
 
 Push-Location $repositoryRoot
 try {
-    foreach ($relativePath in @('notes', 'state', 'cache/home/.config/gh', 'cache/home/.copilot')) {
-        New-Item -ItemType Directory -Path (Join-Path $DataHostPath $relativePath) -Force | Out-Null
-    }
-
     New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
     if (Test-Path $publishDirectory) {
         Remove-Item $publishDirectory -Recurse -Force
