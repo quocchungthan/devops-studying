@@ -332,8 +332,9 @@ public sealed class GitWorkspaceManagerTests : IDisposable
         var firstWorkspace = await manager.PrepareAsync(candidate, fingerprint);
         await File.WriteAllTextAsync(Path.Combine(firstWorkspace.WorktreePath, "review-fix.txt"), "fixed\n");
         var first = await manager.CommitAndPushAsync(firstWorkspace, candidate, fingerprint);
-        Assert.Equal("2026-09-23T12:34:56Z 2026-09-23T12:34:56Z",
-            Run(firstWorkspace.WorktreePath, "show", "-s", "--format=%aI %cI", "HEAD").Trim());
+        var dates = Run(firstWorkspace.WorktreePath, "show", "-s", "--format=%aI %cI", "HEAD").Trim().Split(' ');
+        Assert.Equal(feedbackDate, DateTimeOffset.Parse(dates[0]));
+        Assert.Equal(feedbackDate, DateTimeOffset.Parse(dates[1]));
         await manager.CleanupAsync(firstWorkspace);
         Run(fixture.Repository, "push", "--force", fixture.Origin,
             $"{candidate.HeadSha}:{candidate.SourceRef}");

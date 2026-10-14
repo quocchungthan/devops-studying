@@ -446,7 +446,6 @@ public sealed partial class AzureDevOpsClient :
         var workItems = await client.GetWorkItemsAsync(
             project,
             workItemIds,
-            fields: requestedFields,
             expand: requestedExpand,
             cancellationToken: cancellationToken);
 
