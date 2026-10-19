@@ -13,7 +13,9 @@ using CoreGroup = Farm.Core.Domain.Group;
 using CoreIdentity = Farm.Core.Domain.Identity;
 using CorePullRequestSummary = Farm.Core.Domain.PullRequestSummary;
 using CorePullRequestThread = Farm.Core.Domain.PullRequestThread;
+using CoreWorkItemComment = Farm.Core.Chickens.WorkItemComment;
 using CoreWorkItem = Farm.Core.Domain.WorkItem;
+using AzureWorkItemComment = Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.Comment;
 
 namespace Farm.Azure;
 
@@ -22,6 +24,7 @@ public sealed partial class AzureDevOpsClient :
     IAzureDomainWorkItemClient,
     IAzureWorkItemMutationClient,
     IAzureWorkItemCommentClient,
+    IAzureWorkItemCommentsClient,
     IAzureIdentityClient,
     IAzurePullRequestClient,
     IDisposable
@@ -32,6 +35,14 @@ public sealed partial class AzureDevOpsClient :
         IReadOnlyList<string> fields,
         WorkItemExpand expand,
         CancellationToken cancellationToken);
+
+    internal delegate Task<CommentList> WorkItemCommentsPageLoader(
+        string project,
+        int workItemId,
+        string? continuationToken,
+        CancellationToken cancellationToken);
+
+    private const int WorkItemCommentsPageSize = 200;
 
     internal static IReadOnlyList<string> DetailedWorkItemFields { get; } = Array.AsReadOnly(
     [
@@ -55,6 +66,7 @@ public sealed partial class AzureDevOpsClient :
     private readonly string? team;
     private readonly IReadOnlyList<string> terminalStates;
     private readonly WorkItemBatchLoader? workItemBatchLoader;
+    private readonly WorkItemCommentsPageLoader? workItemCommentsPageLoader;
     private WorkItemTrackingHttpClient? client;
     private ProfileHttpClient? profileClient;
     private GraphHttpClient? graphClient;
@@ -81,6 +93,13 @@ public sealed partial class AzureDevOpsClient :
     {
         this.workItemBatchLoader = workItemBatchLoader
             ?? throw new ArgumentNullException(nameof(workItemBatchLoader));
+    }
+
+    internal AzureDevOpsClient(AzureDevOpsSettings settings, WorkItemCommentsPageLoader workItemCommentsPageLoader)
+        : this(settings)
+    {
+        this.workItemCommentsPageLoader = workItemCommentsPageLoader
+            ?? throw new ArgumentNullException(nameof(workItemCommentsPageLoader));
     }
 
     public async Task<IReadOnlyList<AzureWorkItemDto>> GetWorkItemsAsync(
@@ -140,6 +159,54 @@ public sealed partial class AzureDevOpsClient :
             new CommentCreate { Text = text },
             project,
             id,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CoreWorkItemComment>> GetWorkItemCommentsAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateWorkItemId(id);
+        var comments = new List<AzureWorkItemComment>();
+        string? continuationToken = null;
+
+        do
+        {
+            var page = workItemCommentsPageLoader is null
+                ? await GetWorkItemCommentsPageAsync(id, continuationToken, cancellationToken)
+                : await workItemCommentsPageLoader(project, id, continuationToken, cancellationToken);
+            comments.AddRange(page.Comments ?? []);
+            continuationToken = page.ContinuationToken;
+        }
+        while (!string.IsNullOrEmpty(continuationToken));
+
+        return comments
+            .Where(comment => comment.IsDeleted != true)
+            .OrderBy(comment => comment.CreatedDate)
+            .Select(comment => new CoreWorkItemComment(
+                comment.Id,
+                comment.CreatedBy?.DisplayName,
+                AzureWorkItemMapper.HtmlToText(comment.Text) ?? string.Empty,
+                new DateTimeOffset(comment.CreatedDate.ToUniversalTime()),
+                comment.CreatedBy?.Id,
+                comment.Version,
+                comment.ModifiedDate == default ? null : new DateTimeOffset(comment.ModifiedDate.ToUniversalTime())))
+            .ToArray();
+    }
+
+    private async Task<CommentList> GetWorkItemCommentsPageAsync(
+        int id,
+        string? continuationToken,
+        CancellationToken cancellationToken)
+    {
+        client ??= connection.GetClient<WorkItemTrackingHttpClient>();
+        return await client.GetCommentsAsync(
+            project,
+            id,
+            top: WorkItemCommentsPageSize,
+            continuationToken: continuationToken,
+            includeDeleted: false,
+            order: CommentSortOrder.Asc,
             cancellationToken: cancellationToken);
     }
 

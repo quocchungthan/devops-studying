@@ -1,6 +1,7 @@
 using Farm.Azure;
 using Farm.Core.Domain;
 using Spectre.Console;
+using CoreWorkItemComment = Farm.Core.Chickens.WorkItemComment;
 
 internal static class ConsoleTables
 {
@@ -114,6 +115,29 @@ internal static class ConsoleTables
         }
 
         Render(table, threads.Count, "discussion threads");
+    }
+
+    public static void RenderWorkItemComments(IReadOnlyList<CoreWorkItemComment> comments)
+    {
+        if (comments.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[grey]No comments found.[/]");
+            return;
+        }
+
+        foreach (var comment in comments)
+        {
+            var author = string.IsNullOrWhiteSpace(comment.Author) ? "Unknown" : comment.Author;
+            var header = $"Comment {comment.Id} | {author} | {comment.PublishedAt:u}".TrimEnd();
+            AnsiConsole.Write(new Panel(new Markup(EscapeCell(comment.Content)))
+            {
+                Header = new PanelHeader(EscapeCell(header)),
+                Border = BoxBorder.Rounded,
+                Expand = true,
+                Padding = new Padding(1, 0, 1, 0)
+            });
+            AnsiConsole.WriteLine();
+        }
     }
 
     private static string StatusMarkup(string status) => status switch

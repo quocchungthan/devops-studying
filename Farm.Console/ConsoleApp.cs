@@ -96,8 +96,8 @@ public static class ConsoleApp
             "List comments/discussion on a work item.",
             ["work-item-comments <id>"],
             [],
-            ImplementationStatus.NotImplemented,
-            (args, _) => Task.FromResult(RunNotImplementedStub(args, "work item ID", "work-item-comments"))),
+            ImplementationStatus.Implemented,
+            (args, cancellationToken) => RunWorkItemCommentsAsync(args, cancellationToken, null)),
         new(
             "work-item-relations",
             "List related items/attachments for a work item.",
@@ -122,7 +122,8 @@ public static class ConsoleApp
         IWorkItemAssignmentService? assignmentService,
         CancellationToken cancellationToken = default,
         IWorkItemCommentService? commentService = null,
-        IWorkItemDescriptionService? descriptionService = null)
+        IWorkItemDescriptionService? descriptionService = null,
+        IWorkItemCommentsSource? commentsSource = null)
     {
         if (args.Length == 0)
         {
@@ -179,6 +180,11 @@ public static class ConsoleApp
 
         try
         {
+            if (command.Name == "work-item-comments")
+            {
+                return await RunWorkItemCommentsAsync(rest, cancellation.Token, commentsSource);
+            }
+
             return command.Name == "work-items"
                 && (assignmentService is not null || commentService is not null || descriptionService is not null)
                 ? await RunWorkItemsAsync(rest, cancellation.Token, assignmentService, commentService, descriptionService)
@@ -520,6 +526,30 @@ public static class ConsoleApp
         var threads = await pullRequestSource.ListThreadsAsync(pullRequestId, cancellationToken);
 
         ConsoleTables.RenderThreads(threads);
+        return 0;
+    }
+
+    private static async Task<int> RunWorkItemCommentsAsync(
+        string[] args,
+        CancellationToken cancellationToken,
+        IWorkItemCommentsSource? commentsSource)
+    {
+        if (!TryParseSingleId(args, "work item ID", out var workItemId, out var error))
+        {
+            Console.Error.WriteLine(error);
+            PrintUsage(Console.Error, "work-item-comments");
+            return 2;
+        }
+
+        if (commentsSource is null)
+        {
+            var settings = AzureDevOpsSettingsLoader.LoadFromEnvironment();
+            using var client = new AzureDevOpsClient(settings);
+            commentsSource = new AzureWorkItemCommentsSource(client);
+        }
+
+        var comments = await commentsSource.ListCommentsAsync(workItemId, cancellationToken);
+        ConsoleTables.RenderWorkItemComments(comments);
         return 0;
     }
 

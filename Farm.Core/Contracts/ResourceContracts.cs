@@ -1,3 +1,4 @@
+using Farm.Core.Chickens;
 using Farm.Core.Domain;
 using Farm.Core.Exports;
 
@@ -15,6 +16,13 @@ public interface IWorkItemSource
 
     /// <summary>Unassigned, non-terminal work items in the current iteration.</summary>
     Task<IReadOnlyList<WorkItem>> GetNeedsAttentionAsync(
+        CancellationToken cancellationToken = default);
+}
+
+public interface IWorkItemCommentsSource
+{
+    Task<IReadOnlyList<WorkItemComment>> ListCommentsAsync(
+        int workItemId,
         CancellationToken cancellationToken = default);
 }
 

@@ -1,5 +1,6 @@
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Xunit;
+using CoreWorkItemComment = Farm.Core.Chickens.WorkItemComment;
 
 namespace Farm.Azure.Tests;
 
@@ -71,6 +72,43 @@ public sealed class AzureDevOpsClientTests
         Assert.Contains("System.Tags", requestedFields!);
         Assert.Equal(WorkItemExpand.Relations, requestedExpand);
         Assert.Equal("Detailed & readable", Assert.Single(result).Description);
+    }
+
+    [Fact]
+    public async Task GetWorkItemCommentsAsync_reads_all_pages_and_returns_comments_in_time_order()
+    {
+        var continuationTokens = new List<string?>();
+        using var client = new AzureDevOpsClient(
+            CreateSettings(),
+            (project, id, continuationToken, _) =>
+            {
+                Assert.Equal("Project", project);
+                Assert.Equal(42, id);
+                continuationTokens.Add(continuationToken);
+                return Task.FromResult(continuationToken is null
+                    ? new CommentList
+                    {
+                        Comments =
+                        [
+                            new Comment { Id = 9, Text = "Later", CreatedDate = new DateTime(2026, 10, 2, 0, 0, 0, DateTimeKind.Utc) },
+                            new Comment { Id = 3, Text = "<p>Earlier &amp; first</p>", CreatedDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc) }
+                        ],
+                        ContinuationToken = "next-page"
+                    }
+                    : new CommentList
+                    {
+                        Comments =
+                        [
+                            new Comment { Id = 12, Text = "Deleted", IsDeleted = true, CreatedDate = new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc) }
+                        ]
+                    });
+            });
+
+        IReadOnlyList<CoreWorkItemComment> comments = await client.GetWorkItemCommentsAsync(42);
+
+        Assert.Equal([null, "next-page"], continuationTokens);
+        Assert.Equal([3, 9], comments.Select(comment => comment.Id));
+        Assert.Equal("Earlier & first", comments[0].Content);
     }
 
     [Theory]

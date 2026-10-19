@@ -1,6 +1,7 @@
 using Farm.Core.Domain;
 using Spectre.Console;
 using Xunit;
+using CoreWorkItemComment = Farm.Core.Chickens.WorkItemComment;
 
 namespace Farm.Console.Tests;
 
@@ -75,6 +76,27 @@ public sealed class ConsoleTablesTests
         Assert.DoesNotContain("Reason", output);
         Assert.DoesNotContain("Attachments", output);
         Assert.DoesNotContain("Relations", output);
+    }
+
+    [Fact]
+    public void RenderWorkItemComments_displays_author_time_and_complete_escaped_content()
+    {
+        var content = $"Comment start [red]literal[/]{Environment.NewLine}{string.Join(' ', Enumerable.Repeat("full-comment", 25))} comment-end-marker";
+        AnsiConsole.Record();
+        var previousOutputLength = AnsiConsole.ExportText().Length;
+
+        ConsoleTables.RenderWorkItemComments(
+        [
+            new CoreWorkItemComment(7, "[Reviewer]", content, new DateTimeOffset(2026, 10, 16, 19, 35, 38, TimeSpan.Zero))
+        ]);
+        var output = AnsiConsole.ExportText()[previousOutputLength..];
+
+        Assert.Contains("Comment 7", output);
+        Assert.Contains("[Reviewer]", output);
+        Assert.Contains("2026-10-16 19:35:38Z", output);
+        Assert.Contains("[red]literal[/]", output);
+        Assert.Contains("comment-end-marker", output);
+        Assert.DoesNotContain("…", output);
     }
 
     private static WorkItem CreateWorkItem(int id, string title, string description) =>

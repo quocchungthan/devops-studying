@@ -1,4 +1,5 @@
 using Farm.Core.Contracts;
+using Farm.Core.Chickens;
 using Farm.Core.Domain;
 using Microsoft.VisualStudio.Services.Common;
 using Spectre.Console;
@@ -128,6 +129,16 @@ public sealed class ConsoleAppTests
         Assert.Contains("Status: implemented", helpCommand.Output);
     }
 
+    [Fact]
+    public async Task RunAsync_work_item_comments_help_reports_implemented_status()
+    {
+        var help = await CaptureStandardOutputAsync(["help", "work-item-comments"]);
+
+        Assert.Equal(0, help.ExitCode);
+        Assert.Contains("Usage: sam work-item-comments <id>", help.Output);
+        Assert.Contains("Status: implemented", help.Output);
+    }
+
     [Theory]
     [InlineData("--version")]
     [InlineData("-v")]
@@ -150,7 +161,6 @@ public sealed class ConsoleAppTests
 
     [Theory]
     [InlineData("pr-diff", "1")]
-    [InlineData("work-item-comments", "1")]
     [InlineData("work-item-relations", "1")]
     public async Task RunAsync_stub_commands_return_not_implemented_exit_code(string command, string id)
     {
@@ -175,11 +185,33 @@ public sealed class ConsoleAppTests
     [InlineData("pr-diff")]
     [InlineData("work-item-comments")]
     [InlineData("work-item-relations")]
-    public async Task RunAsync_stub_commands_reject_invalid_args(string command)
+    public async Task RunAsync_commands_reject_invalid_args(string command)
     {
         var exitCode = await ConsoleApp.RunAsync([command, "not-a-number"]);
 
         Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_work_item_comments_lists_comment_content_and_passes_id_to_source()
+    {
+        var source = new StubWorkItemCommentsSource(
+        [
+            new WorkItemComment(7, "Reviewer", "Please dimension each block.", DateTimeOffset.Parse("2026-10-16T19:35:38Z"))
+        ]);
+        AnsiConsole.Record();
+
+        var exitCode = await ConsoleApp.RunAsync(
+            ["work-item-comments", "246982"],
+            assignmentService: null,
+            commentsSource: source);
+        var output = AnsiConsole.ExportText();
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(246982, source.WorkItemId);
+        Assert.Contains("Comment 7", output);
+        Assert.Contains("Reviewer", output);
+        Assert.Contains("Please dimension each block.", output);
     }
 
     [Fact]
@@ -378,6 +410,7 @@ public sealed class ConsoleAppTests
     [InlineData("work-items assign 1 me")]
     [InlineData("work-items unassign 1")]
     [InlineData("pr-threads 1")]
+    [InlineData("work-item-comments 246982")]
     public async Task RunAsync_commands_requiring_configuration_fail_cleanly_without_environment(string commandLine)
     {
         var organizationUrl = Environment.GetEnvironmentVariable("FARM_AZURE_DEVOPS_ORGANIZATION_URL");
@@ -456,6 +489,19 @@ public sealed class ConsoleAppTests
             Id = id;
             Text = text;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubWorkItemCommentsSource(IReadOnlyList<WorkItemComment> comments) : IWorkItemCommentsSource
+    {
+        public int WorkItemId { get; private set; }
+
+        public Task<IReadOnlyList<WorkItemComment>> ListCommentsAsync(
+            int workItemId,
+            CancellationToken cancellationToken = default)
+        {
+            WorkItemId = workItemId;
+            return Task.FromResult(comments);
         }
     }
 

@@ -59,8 +59,9 @@ Implemented command families include:
 - `pull-requests pending-review`
 - `pull-requests mine`
 - `pr-threads <pr-id>`
+- `work-item-comments <id>`
 
-`pr-diff`, `work-item-comments`, and `work-item-relations` validate arguments but currently exit `3` with a not-yet-implemented message. Use `sam help` for exact usage and status.
+`pr-diff` and `work-item-relations` validate arguments but currently exit `3` with a not-yet-implemented message. Use `sam help` for exact usage and status.
 
 ## Output and examples
 
@@ -76,6 +77,7 @@ sam work-items unassign 123
 sam work-items comment 123 "Investigated the issue; the fix is ready for review."
 sam work-items comment 123 --file .\notes\comment.md
 sam work-items update-description 123 .\notes\description.md
+sam work-item-comments 123
 sam whoami
 sam pull-requests pending-review
 ```
